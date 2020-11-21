@@ -59,7 +59,7 @@ if __name__ == '__main__':
         q_func,
         opt,
         rbuf,
-        gpu=-1,
+        gpu=0,
         gamma=0.99,
         explorer=explorer,
         recurrent=True,

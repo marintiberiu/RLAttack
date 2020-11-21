@@ -15,7 +15,7 @@ class AttackEnv(gym.core.Env):
         self.action_space = gym.spaces.Discrete(8)
         self.image = None
         self.target_class = None
-        self.net = resnet18(pretrained=False, num_classes=10).eval()
+        self.net = resnet18(pretrained=False, num_classes=10).eval().cuda()
         self.net.load_state_dict(torch.load('saves/resnet18_cifar10.sv'))
         self.state = np.zeros((32, 32), dtype=np.float32)
         self.observation = np.zeros(10, dtype=np.float32)
@@ -93,7 +93,7 @@ class AttackEnv(gym.core.Env):
 
     def query(self):
         with torch.no_grad():
-            return torch.softmax(self.net((self.image + self.state).clamp(-1, 1)), dim=1)[0].numpy()
+            return torch.softmax(self.net((self.image + self.state).cuda().clamp(-1, 1)), dim=1)[0].cpu().numpy()
 
     def reset(self):
         self.state *= 0
