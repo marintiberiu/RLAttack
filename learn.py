@@ -9,7 +9,7 @@ from torch import nn, optim
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import transforms
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from rl.env_d import AttackEnv
 
@@ -20,6 +20,8 @@ if __name__ == '__main__':
 
     image_size = 32 * 32
     n_classes = 10
+    max_episodes = 100
+    max_episode_len = 1000
 
     env = AttackEnv()
 
@@ -66,17 +68,19 @@ if __name__ == '__main__':
         episodic_update_len=100
     )
 
-    for data in tqdm(test_dataset):
+    for idx, data in enumerate(test_dataset):
+        tqdm.write(" Image " + str(idx))
         env.set_data(data[0], data[1])
         env.reset_logger()
 
-        experiments.train_agent(
-            agent=agent,
-            env=env,
-            steps=10000,
-            outdir='output',
-            max_episode_len=1000
-        )
+        for ep in trange(max_episodes):
+            obs = env.reset()
+            for k in range(max_episode_len):
+                action = agent.act(obs)
+                obs, r, done, info = env.step(action)
+                agent.observe(obs, r, done, k == max_episode_len - 1)
+                if done:
+                    break
 
         print("Accuracy:", env.successes / env.episodes * 100,
               "Average reward:", env.reward_sum / env.episodes,
