@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     image_size = 32 * 32
     n_classes = 10
-    max_episodes = 100
+    max_episodes = 20
     max_episode_len = 1000
 
     env = AttackEnv()
@@ -82,8 +82,8 @@ if __name__ == '__main__':
                 if done:
                     break
 
-        print("Accuracy:", env.successes / env.episodes * 100,
-              "Average reward:", env.reward_sum / env.episodes,
+        print("Accuracy:", env.successes / max_episodes * 100,
+              "Average reward:", env.reward_sum / max_episodes,
               "Average queries:", -1 if env.successes == 0 else env.n_queries / env.successes
               )
 
