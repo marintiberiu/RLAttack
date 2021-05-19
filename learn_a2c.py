@@ -2,7 +2,7 @@ import pfrl
 import torch
 
 from pfrl import replay_buffers, explorers, experiments, q_functions
-from pfrl.agents import DQN
+from pfrl.agents import DQN, a2c
 from pfrl.q_functions import DiscreteActionValueHead
 
 from torch import nn, optim
@@ -11,7 +11,8 @@ from torchvision.transforms import transforms
 import numpy as np
 from tqdm import tqdm, trange
 
-from rl.env_d import AttackEnv
+from a2c_net import A2CNet
+from rl.env_a2c import AttackEnv
 
 
 if __name__ == '__main__':
@@ -32,20 +33,8 @@ if __name__ == '__main__':
 
     n_actions = action_space.n
 
-    q_func = pfrl.nn.RecurrentSequential(
-        nn.Linear(obs_size, 64),
-        nn.ReLU(),
-        nn.Linear(64, 256),
-        nn.ReLU(),
-        nn.Linear(256, 512),
-        nn.ReLU(),
-        nn.Linear(512, 1024),
-        nn.ReLU(),
-        nn.LSTM(input_size=1024,
-                hidden_size=512),
-        nn.Linear(512, n_actions),
-        DiscreteActionValueHead(),
-    )
+    model = A2CNet()
+
     # Use epsilon-greedy for exploration
     explorer = explorers.LinearDecayEpsilonGreedy(
         1,
@@ -54,25 +43,28 @@ if __name__ == '__main__':
         action_space.sample,
     )
 
-    opt = optim.Adam(q_func.parameters())
+    optimizer = pfrl.optimizers.RMSpropEpsInsideSqrt(
+        model.parameters(),
+        lr=1e-3,
+        eps=1e-5,
+        alpha=0.99,
+    )
     rbuf = replay_buffers.EpisodicReplayBuffer(10 ** 6)
 
-    agent = DQN(
-        q_func,
-        opt,
-        rbuf,
-        gpu=0,
+    agent = a2c.A2C(
+        model,
+        optimizer,
         gamma=0.99,
-        explorer=explorer,
-        recurrent=True,
-        episodic_update_len=100,
-        batch_accumulator='mean',
-        minibatch_size=10
+        gpu=0,
+        num_processes=3,
+        update_steps=5,
+        phi=lambda x: np.asarray(x, dtype=np.float32) / 255,
     )
 
     for idx, data in enumerate(test_dataset):
         tqdm.write(" Image " + str(idx))
         env.set_data(data[0], data[1])
+
         env.reset_logger()
 
         for ep in trange(max_episodes):
@@ -89,4 +81,4 @@ if __name__ == '__main__':
               "Average queries:", -1 if env.successes == 0 else env.n_queries / env.successes
               )
 
-        torch.save(q_func.state_dict(), 'saves/q_model.sv')
+        torch.save(model.state_dict(), 'saves/a2c_model.sv')
