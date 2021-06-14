@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.models.resnet import resnet18
+from torchvision.models.vgg import vgg11
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -14,8 +15,8 @@ if __name__ == '__main__':
 
     max_epochs = 100
     batch_size = 64
-    net = resnet18(pretrained=False, num_classes=10).cuda()
-    optimizer = torch.optim.Adam(net.parameters())
+    net = vgg11(pretrained=False, num_classes=10).cuda()
+    optimizer = torch.optim.Adam(net.parameters(), lr=1e-5)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, max_epochs, eta_min=1e-10)
     loss_f = CrossEntropyLoss()
 
@@ -53,4 +54,4 @@ if __name__ == '__main__':
 
         print("Epoch", epoch, "train", train_acc, "test", test_acc)
 
-        torch.save(net.state_dict(), 'saves/resnet18_cifar10.sv')
+        torch.save(net.state_dict(), 'saves/vgg11_cifar10.sv')

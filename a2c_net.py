@@ -5,11 +5,16 @@ from pfrl.policies import SoftmaxCategoricalHead
 
 def double_conv(in_channels, out_channels):
     return nn.Sequential(
-        nn.Conv2d(in_channels, out_channels, 3, padding=1),
+        nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
         nn.ReLU(inplace=True),
-        nn.Conv2d(out_channels, out_channels, 3, padding=1),
+        nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
         nn.ReLU(inplace=True)
     )
+
+
+class CategoricalHead(nn.Module):
+    def forward(self, x):
+        return torch.distributions.Categorical(probs=x.softmax(dim=1))
 
 
 class A2CNet(nn.Module):
@@ -30,7 +35,7 @@ class A2CNet(nn.Module):
         self.dconv_up1 = double_conv(n_filters * 2 + n_filters, n_filters)
 
         self.conv_last = nn.Conv2d(n_filters, 1, 1)
-        self.cat_softmax = SoftmaxCategoricalHead(),
+        self.cat_softmax = CategoricalHead(),
 
         self.v_conv1 = nn.Sequential(
             nn.Conv2d(n_filters * 8, n_filters * 2, 3),

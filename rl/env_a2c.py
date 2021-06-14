@@ -1,10 +1,11 @@
 import os
-from queue import LifoQueue
+from queue import Queue
 
 import gym
 import numpy as np
 import torch
 from torchvision.models import resnet18
+from torchvision.models import vgg11
 from PIL import Image
 from random import randint
 
@@ -17,9 +18,9 @@ class AttackEnv(gym.core.Env):
         self.image = None
         self.target_class = None
         self.net = resnet18(pretrained=False, num_classes=10).eval().cuda()
-        self.net.load_state_dict(torch.load('saves/resnet18_cifar10.sv'))
-        self.state = np.zeros((32, 32), dtype=np.float32)
-        self.action_list = LifoQueue()
+        self.net.load_state_dict(torch.load('saves/resnet18_cifar10_2.sv'))
+        self.state = np.zeros((3, 32, 32), dtype=np.float32)
+        self.action_list = Queue()
         # logging tools
         self.successes = 0
         self.q_idx = 0
@@ -38,17 +39,21 @@ class AttackEnv(gym.core.Env):
         row = action // 32
         col = action % 32
 
-        if self.action_list.qsize() == 50:
-            f_row, f_col = self.action_list.get()
-            self.state[f_row, f_col] = 0
-
-        self.state[row, col] = 1
-        self.action_list.put((row, col))
+        if self.state[:, row, col].mean() == 1:
+            reward = -5
+        else:
+            reward = -0.01
+            self.n_queries += 1
+            if self.action_list.qsize() == 50:
+                f_row, f_col = self.action_list.get()
+                self.state[:, f_row, f_col] = 0
+            self.state[:, row, col] = 1
+            self.action_list.put((row, col))
 
         target, best = self.query()
-        reward = target - best
+        reward += target - best
 
-        self.q_idx += 1
+        self.rez = (target, best)
 
         if best > target:
             done = True
@@ -60,14 +65,15 @@ class AttackEnv(gym.core.Env):
             self.reward_sum += reward
             if reward > 5:
                 self.successes += 1
-                self.n_queries += self.q_idx
-            self.q_idx = 0
 
-        return (self.image + self.state)[0], reward, done, {}
+        return (self.image + self.state)[0], reward, done, False
 
     def query(self):
         with torch.no_grad():
-            q = torch.softmax(self.net((self.image + self.state).cuda().clamp(-1, 1)), dim=1)[0].cpu().numpy()
+            q = self.net((self.image + self.state).cuda().clamp(-1, 1))[0]
+            q = q - q.min()
+            q = q / q.max()
+            q = q.cpu().numpy()
             target = q[self.target_class]
             q[self.target_class] = 0
             return target, q.max()

@@ -6,6 +6,7 @@ from pfrl.agents import DQN, a2c
 from pfrl.q_functions import DiscreteActionValueHead
 
 from torch import nn, optim
+from torch.utils.data import Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import transforms
 import numpy as np
@@ -18,6 +19,7 @@ from rl.env_a2c import AttackEnv
 if __name__ == '__main__':
     transform = transforms.Compose((transforms.ToTensor(), transforms.Normalize(0.5, 0.5, 0.5)))
     test_dataset = CIFAR10('data', train=False, transform=transform, download=False)
+    test_dataset = Subset(test_dataset, range(9000))
 
     image_size = 32 * 32
     n_classes = 10
@@ -34,18 +36,11 @@ if __name__ == '__main__':
     n_actions = action_space.n
 
     model = A2CNet()
-
-    # Use epsilon-greedy for exploration
-    explorer = explorers.LinearDecayEpsilonGreedy(
-        1,
-        0.1,
-        10 ** 4,
-        action_space.sample,
-    )
+    model.load_state_dict(torch.load('saves/a2c_model.sv'))
 
     optimizer = pfrl.optimizers.RMSpropEpsInsideSqrt(
         model.parameters(),
-        lr=1e-3,
+        lr=1e-5,
         eps=1e-5,
         alpha=0.99,
     )
